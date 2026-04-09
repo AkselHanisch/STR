@@ -1,5 +1,14 @@
 import sys
-sys.path.append("model")
+import os
+
+# Add src/str/ directory to path so preprocess.*, ocTree.*, and model-local imports work
+_STR_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if _STR_ROOT not in sys.path:
+    sys.path.insert(0, _STR_ROOT)
+# Also add model/ directory for model-local imports (lossFunc, accFunc, etc.)
+_MODEL_DIR = os.path.abspath(os.path.dirname(__file__))
+if _MODEL_DIR not in sys.path:
+    sys.path.insert(0, _MODEL_DIR)
 
 import copy
 import time
@@ -9,7 +18,6 @@ import pickle
 import numpy as np
 
 from tqdm import tqdm
-import os
 import random
 import torch
 import torch.nn as nn
@@ -322,7 +330,8 @@ class ExpSTRmodel(ExpConfig):
 
     # Between trajectories and trajectories based on the number of shared octree lattices and the density of points within the lattice, the two-by-two similarity is calculated and normalized between 0-1
     def _compute_common_tps(self, node_num_all):
-        edge_adj = [[0 for _ in range(1000)] for _ in range(1000)]
+        n = len(self.merge_trajs_data)
+        edge_adj = [[0 for _ in range(n)] for _ in range(n)]
         for i in range(len(node_num_all)):
             traj1 = node_num_all[i]
             for j in range(i, len(node_num_all)):

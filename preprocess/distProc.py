@@ -1,6 +1,13 @@
 import pickle as pickle
 import numpy as np
-from distFunc import trajectory_distance_combain, trajecotry_distance_list, trajecotry_temporal_distance_list, trajectory_temporal_distance_combain, trajectory_spatial_temporal_simility
+import sys
+import os
+
+_STR_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if _STR_ROOT not in sys.path:
+    sys.path.insert(0, _STR_ROOT)
+
+from preprocess.distFunc import trajectory_distance_combain, trajecotry_distance_list, trajecotry_temporal_distance_list, trajectory_temporal_distance_combain, trajectory_spatial_temporal_simility
 
 def distance_comp(coor_path, data_name, trajs_len, batch_size, distance_type="discret_frechet", save_path = "./data/features/"):
     traj_coord = pickle.load(open(coor_path, 'rb'))
