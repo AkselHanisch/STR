@@ -466,7 +466,7 @@ class ExpSTRmodel(ExpConfig):
 
                     vectors_all = torch.stack(vectors_all).unsqueeze(dim=0)
 
-                    loss += criterion(self.config["sample_num"], vectors_all, torch.tensor(dis_list).unsqueeze(dim=0).to(self.device), self.edgs_adj[idx_in,sample_index_in])
+                    loss += criterion(self.config["sample_num"], vectors_all, torch.tensor(dis_list).unsqueeze(dim=0).to(self.device))
 
                 model_optim.zero_grad()
                 loss.backward()
