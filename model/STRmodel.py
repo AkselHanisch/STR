@@ -282,7 +282,10 @@ class ExpSTRmodel(ExpConfig):
 
         if self.load_model is not None:
             ck = torch.load(self.load_model)
-            model.load_state_dict(ck,strict=False)
+            if "encoder" in ck:
+                model.load_state_dict(ck["encoder"])
+            else:
+                model.load_state_dict(ck, strict=False)
             print("[!] Load model weight:", self.load_model)
 
         return model
@@ -495,19 +498,16 @@ class ExpSTRmodel(ExpConfig):
                 best_hr10 = hr10
                 best_model_wts = copy.deepcopy(self.model.state_dict())
                 print(f"Best HR10: {100*best_hr10:.4f}%")
-                print(f"model path: ",self.config["model_best_wts_path"].format(best_hr10))
+                print(f"model path: ", self.config["model_best_wts_path"])
                 
                 val_res = pd.DataFrame([[hr10, hr50,r10_50]], columns=["HR10","HR50","R10@50"])
                 val_res.to_csv(self.config["model_best_topAcc_path"],index=False)
                 
-                model_file = self.config["model_best_wts_path"].format(best_hr10)
-                deleteHistoryModelPath(model_file)
-                torch.save(best_model_wts, model_file)
+                torch.save({"encoder": best_model_wts}, self.config["model_best_wts_path"])
 
         time_end = time.time()
         print("\nAll training complete in {:.0f}m {:.0f}s".format((time_end - time_now) // 60, (time_end - time_now) % 60))
         print(f"Best HR10: {100*best_hr10:.4f}%")
-        torch.save(best_model_wts, self.config["model_best_wts_path"].format(best_hr10))
 
 
 
