@@ -282,7 +282,10 @@ class ExpSTRmodel(ExpConfig):
 
         if self.load_model is not None:
             ck = torch.load(self.load_model)
-            model.load_state_dict(ck,strict=False)
+            if "encoder" in ck:
+                model.load_state_dict(ck["encoder"])
+            else:
+                model.load_state_dict(ck, strict=False)
             print("[!] Load model weight:", self.load_model)
 
         return model
@@ -381,12 +384,13 @@ class ExpSTRmodel(ExpConfig):
             traj_feature_list = [tensor for tensor_list in traj_feature_list_list for tensor in tensor_list]
             sim_traj_list = [torch.stack(sim_traj) for sim_traj in sim_trajs]
 
-            with torch.set_grad_enabled(True):
-                for traj_feature,sim_traj in zip(traj_feature_list, sim_traj_list):
-                    vectors = self.model(traj_feature.unsqueeze(dim=0).to(self.device), sim_traj.unsqueeze(dim=0)).squeeze()
-                    all_vectors.append(vectors)
-                    
-        all_vectors = torch.stack(all_vectors).squeeze()
+            with torch.no_grad():
+                traj_batch = torch.stack(traj_feature_list).to(self.device)
+                sim_batch = torch.stack(sim_traj_list).to(self.device)
+                vectors = self.model(traj_batch, sim_batch)
+                all_vectors.append(vectors)
+
+        all_vectors = torch.cat(all_vectors).squeeze()
         print("all_embeding_vectors length:", len(all_vectors))
         print("all_embedding_vectors shape:", all_vectors.shape)
 
@@ -409,12 +413,13 @@ class ExpSTRmodel(ExpConfig):
             traj_feature_list = [tensor for tensor_list in traj_feature_list_list for tensor in tensor_list]
             sim_traj_list = [torch.stack(sim_traj) for sim_traj in sim_trajs]
             
-            with torch.set_grad_enabled(True):
-                for traj_feature,sim_traj in zip(traj_feature_list, sim_traj_list):
-                    vectors = self.model(traj_feature.unsqueeze(dim=0).to(self.device), sim_traj.unsqueeze(dim=0)).squeeze()
-                    all_vectors.append(vectors)
+            with torch.no_grad():
+                traj_batch = torch.stack(traj_feature_list).to(self.device)
+                sim_batch = torch.stack(sim_traj_list).to(self.device)
+                vectors = self.model(traj_batch, sim_batch)
+                all_vectors.append(vectors)
 
-        all_vectors = torch.stack(all_vectors).squeeze()
+        all_vectors = torch.cat(all_vectors).squeeze()
         print("all_val_vectors length:", len(all_vectors))
 
         hr10, hr50, r10_50 = topk_acc(row_embedding_tensor=all_vectors[self.config["val_data_range"][0] : self.config["val_data_range"][1]], col_embedding_tensor=all_vectors, distance_matrix=self.val_loader.dataset.dis_matrix, matrix_cal_batch=self.config["matrix_cal_batch"])
@@ -452,19 +457,15 @@ class ExpSTRmodel(ExpConfig):
                 
                 loss=0
                 for traj_feature_list,dis_list,idx_in,sample_index_in,sim_traj in zip(traj_feature_list_list,dis_list_list,idx,sample_index,sim_trajs):
-                    vectors_all = []
-
                     sim_traj_tensor = torch.stack(sim_traj)
-                    
+
                     with torch.set_grad_enabled(True):
-                        for traj_feature_list_tensor in traj_feature_list:
-                            vectors = self.model(traj_feature_list_tensor.unsqueeze(dim=0).to(self.device), sim_traj_tensor.unsqueeze(dim=0)).squeeze()
-                            vectors_all.append(vectors)
+                        traj_batch = torch.stack(traj_feature_list).to(self.device)  # (sample_num, 200, 7)
+                        sim_batch = sim_traj_tensor.unsqueeze(0).expand(len(traj_feature_list), -1, -1).to(self.device)  # (sample_num, 200, 7)
+                        vectors_all = self.model(traj_batch, sim_batch).unsqueeze(0)  # (1, sample_num, d_model)
 
                     test_time = time.time()
                     embed_time += time.time() - test_time2
-
-                    vectors_all = torch.stack(vectors_all).unsqueeze(dim=0)
 
                     loss += criterion(self.config["sample_num"], vectors_all, torch.tensor(dis_list).unsqueeze(dim=0).to(self.device))
 
@@ -497,19 +498,16 @@ class ExpSTRmodel(ExpConfig):
                 best_hr10 = hr10
                 best_model_wts = copy.deepcopy(self.model.state_dict())
                 print(f"Best HR10: {100*best_hr10:.4f}%")
-                print(f"model path: ",self.config["model_best_wts_path"].format(best_hr10))
+                print(f"model path: ", self.config["model_best_wts_path"])
                 
                 val_res = pd.DataFrame([[hr10, hr50,r10_50]], columns=["HR10","HR50","R10@50"])
                 val_res.to_csv(self.config["model_best_topAcc_path"],index=False)
                 
-                model_file = self.config["model_best_wts_path"].format(best_hr10)
-                deleteHistoryModelPath(model_file)
-                torch.save(best_model_wts, model_file)
+                torch.save({"encoder": best_model_wts}, self.config["model_best_wts_path"])
 
         time_end = time.time()
         print("\nAll training complete in {:.0f}m {:.0f}s".format((time_end - time_now) // 60, (time_end - time_now) % 60))
         print(f"Best HR10: {100*best_hr10:.4f}%")
-        torch.save(best_model_wts, self.config["model_best_wts_path"].format(best_hr10))
 
 
 
