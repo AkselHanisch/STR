@@ -78,7 +78,7 @@ def prepare_data(
     """
     df = pl.read_parquet(data_path)
     trajs_xy: list[list[list[float]]] = df["TRAJ_MERCATOR"].to_list()
-    timestamps = df["TIMESTAMP"].to_list() if "TIMESTAMP" in df.columns else None
+    timestamps = df["TIMESTAMPS"].to_list() if "TIMESTAMPS" in df.columns else None
     str_trajs = to_str_format(trajs_xy, timestamps=timestamps)
     n_trajs = len(str_trajs)
 
